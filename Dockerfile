@@ -25,6 +25,7 @@ ENV VPNGATE_DATA_DIR=/app/data \
     LOCAL_PROXY_PORT=7928 \
     UI_HOST=0.0.0.0 \
     UI_PORT=8787 \
+    PORT=8787 \
     TZ=Asia/Shanghai
 
 EXPOSE 8787 7928

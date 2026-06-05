@@ -53,6 +53,54 @@ docker compose up -d --build
 docker compose logs -f vpngate-to-vps
 ```
 
+## Zeabur 部署
+
+Zeabur 可以从 GitHub 仓库或 Docker 镜像部署服务，但此项目依赖 OpenVPN TUN 设备。部署前先确认你的 Zeabur 运行环境支持：
+
+- `/dev/net/tun`
+- `NET_ADMIN`
+- `NET_RAW`
+- TCP 端口暴露
+
+如果 Zeabur 服务配置里无法开启这些权限，请改为在你的 VPS 上 SSH 执行 Docker Compose 部署。
+
+### 方式 A：从 GitHub 仓库部署
+
+1. 在 Zeabur 新建 Project。
+2. 添加 Service，选择 GitHub Repository。
+3. 选择 `Sakuralaaa/vps-vpngate-to-socks` 和 `main` 分支。
+4. 构建方式选择 Dockerfile。
+5. 环境变量至少设置：
+
+```text
+PORT=8787
+UI_PORT=8787
+UI_HOST=0.0.0.0
+LOCAL_PROXY_HOST=0.0.0.0
+LOCAL_PROXY_PORT=7928
+VPNGATE_DATA_DIR=/app/data
+PUBLIC_HOST=你的Web访问域名
+```
+
+6. 暴露 Web HTTP 端口 `8787`。
+7. 暴露 TCP 代理端口 `7928`。
+8. 如果 Zeabur 给代理端口分配了不同的公网转发地址或端口，再设置：
+
+```text
+PUBLIC_PROXY_HOST=Zeabur分配的TCP转发域名或IP
+PUBLIC_PROXY_PORT=Zeabur分配的TCP转发端口
+```
+
+### 方式 B：使用 GitHub Actions 构建出的 GHCR 镜像
+
+镜像地址：
+
+```text
+ghcr.io/sakuralaaa/vps-vpngate-to-socks:latest
+```
+
+在 Zeabur 添加 Docker Image Service，填入上面的镜像地址，再按方式 A 设置环境变量和端口。
+
 首次启动会在日志里输出 Web 地址、账号和密码。配置也会保存到：
 
 ```text

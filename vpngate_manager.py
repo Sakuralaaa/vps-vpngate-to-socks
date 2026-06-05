@@ -89,9 +89,11 @@ OPENVPN_AUTH_PASS = os.environ.get("OPENVPN_AUTH_PASS", "vpn")
 LOCAL_PROXY_HOST = os.environ.get("LOCAL_PROXY_HOST", "0.0.0.0")
 LOCAL_PROXY_PORT = int(os.environ.get("LOCAL_PROXY_PORT", "7928"))
 UI_HOST = os.environ.get("UI_HOST", "0.0.0.0")
-UI_PORT = int(os.environ.get("UI_PORT", "8787"))
+UI_PORT = int(os.environ.get("UI_PORT", os.environ.get("PORT", "8787")))
 INVALID_BACKOFF_SECONDS = int(os.environ.get("INVALID_BACKOFF_SECONDS", str(30 * 60)))
 PUBLIC_HOST = os.environ.get("PUBLIC_HOST", "").strip()
+PUBLIC_PROXY_HOST = os.environ.get("PUBLIC_PROXY_HOST", "").strip()
+PUBLIC_PROXY_PORT = os.environ.get("PUBLIC_PROXY_PORT", "").strip()
 
 ROOT_DIR = Path(sys.executable).resolve().parent if globals().get("__compiled__") else Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ["VPNGATE_DATA_DIR"]).resolve() if os.environ.get("VPNGATE_DATA_DIR") else ROOT_DIR / "vpngate_data"
@@ -366,6 +368,8 @@ def get_state() -> dict[str, Any]:
     state["proxy_password"] = ui_cfg.get("proxy_password", "")
     state["subscription_token"] = ui_cfg.get("subscription_token", "")
     state["public_host"] = ui_cfg.get("public_host", PUBLIC_HOST)
+    state["public_proxy_host"] = normalize_host(PUBLIC_PROXY_HOST) if PUBLIC_PROXY_HOST else ""
+    state["public_proxy_port"] = parse_int(PUBLIC_PROXY_PORT) if PUBLIC_PROXY_PORT else 0
     state["clash_subscription_path"] = f"/sub/{ui_cfg.get('subscription_token', '')}"
     state["routing_mode"] = ui_cfg.get("routing_mode", "auto")
     state["force_country"] = ui_cfg.get("force_country", "")
@@ -3915,13 +3919,14 @@ function closeNetworkModal() {
 }
 
 function proxyHostForDisplay() {
+  if (state && state.public_proxy_host) return state.public_proxy_host;
   if (state && state.public_host) return state.public_host;
   return window.location.hostname || "127.0.0.1";
 }
 
 function buildProxyDisplayUrl() {
   const host = proxyHostForDisplay();
-  const port = (state && state.proxy_port) || 7928;
+  const port = (state && state.public_proxy_port) || (state && state.proxy_port) || 7928;
   const user = (state && state.proxy_username) || "";
   const pass = (state && state.proxy_password) || "";
   const auth = user && pass ? `${encodeURIComponent(user)}:${encodeURIComponent(pass)}@` : "";
@@ -4563,11 +4568,11 @@ def yaml_quote(value: Any) -> str:
 
 def build_clash_subscription(headers: Any) -> str:
     ui_cfg = load_ui_config()
-    server = host_from_request(headers) or "127.0.0.1"
+    server = normalize_host(PUBLIC_PROXY_HOST) or host_from_request(headers) or "127.0.0.1"
     name = os.environ.get("CLASH_NODE_NAME", "VPNGate-to-VPS")
     username = ui_cfg.get("proxy_username", "proxy")
     password = ui_cfg.get("proxy_password", "")
-    port = int(ui_cfg.get("proxy_port", LOCAL_PROXY_PORT))
+    port = parse_int(PUBLIC_PROXY_PORT) or int(ui_cfg.get("proxy_port", LOCAL_PROXY_PORT))
     return "\n".join([
         "mixed-port: 7890",
         "allow-lan: false",
