@@ -83,6 +83,7 @@ CHECK_INTERVAL_SECONDS = int(os.environ.get("CHECK_INTERVAL_SECONDS", "1260"))
 TARGET_VALID_NODES = int(os.environ.get("TARGET_VALID_NODES", "3"))
 MAX_SCAN_ROWS = int(os.environ.get("MAX_SCAN_ROWS", "300"))
 OPENVPN_TEST_TIMEOUT_SECONDS = int(os.environ.get("OPENVPN_TEST_TIMEOUT_SECONDS", "35"))
+OPENVPN_PROBE_MAX_WORKERS = int(os.environ.get("OPENVPN_PROBE_MAX_WORKERS", "6"))
 OPENVPN_CMD = os.environ.get("OPENVPN_CMD", "openvpn")
 OPENVPN_AUTH_USER = os.environ.get("OPENVPN_AUTH_USER", "vpn")
 OPENVPN_AUTH_PASS = os.environ.get("OPENVPN_AUTH_PASS", "vpn")
@@ -106,7 +107,7 @@ lock = threading.RLock()
 active_sessions: dict[str, float] = {}
 active_openvpn_process: subprocess.Popen[str] | None = None
 active_openvpn_node_id = ""
-is_connecting = True
+is_connecting = False
 last_active_ping_time = 0.0
 last_active_latency = 0
 
@@ -756,17 +757,35 @@ def stop_process(process: subprocess.Popen[str] | None) -> None:
         return
     process.terminate()
     try:
-        process.wait(timeout=8)
+        process.wait(timeout=5)
     except subprocess.TimeoutExpired:
         process.kill()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            pass
+    try:
+        if process.stdout:
+            process.stdout.close()
+    except Exception:
+        pass
 
 def kill_existing_openvpn_processes() -> None:
     if not sys.platform.startswith("linux"):
         return
     try:
-        # Terminate existing openvpn processes managing tun0 or using our vpngate configuration
-        subprocess.run(["pkill", "-f", "openvpn.*tun0"], capture_output=True, timeout=2)
-        subprocess.run(["pkill", "-f", "openvpn.*vpngate_data"], capture_output=True, timeout=2)
+        # Terminate OpenVPN processes created by this app, including short-lived
+        # probe processes that use tun2/tun3/... and configs under DATA_DIR.
+        patterns = [
+            r"openvpn.*--config .*/configs/.*\.ovpn",
+            r"openvpn.*--config .*vpngate.*\.ovpn",
+            r"openvpn.*--dev tun[0-9]*",
+        ]
+        for pattern in patterns:
+            subprocess.run(["pkill", "-TERM", "-f", pattern], capture_output=True, timeout=2)
+        time.sleep(0.5)
+        for pattern in patterns:
+            subprocess.run(["pkill", "-KILL", "-f", pattern], capture_output=True, timeout=2)
         print("[Cleanup] Terminated existing AimiliVPN OpenVPN processes.", flush=True)
     except Exception as e:
         print(f"[Cleanup Error] Failed to kill existing OpenVPN processes: {e}", flush=True)
@@ -1101,7 +1120,7 @@ def test_multiple_nodes(node_ids: list[str]) -> list[dict[str, Any]]:
         return temp_node
 
     updated_nodes_map = {}
-    max_workers = min(30, max(1, len(to_test)))
+    max_workers = min(max(1, OPENVPN_PROBE_MAX_WORKERS), max(1, len(to_test)))
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(test_worker, (idx, n)): n["id"] for idx, n in enumerate(to_test)}
         for future in concurrent.futures.as_completed(futures):
@@ -1325,7 +1344,6 @@ def connect_node(node_id: str) -> str:
 def maintain_valid_nodes(force: bool = False) -> str:
     global active_openvpn_process, active_openvpn_node_id, is_connecting
     ensure_dirs()
-    is_connecting = True
     try:
         if force:
             with lock:
@@ -1346,7 +1364,6 @@ def maintain_valid_nodes(force: bool = False) -> str:
                                 connect_node(target_id)
                             except Exception as e:
                                 print(f"[维护线程] 重新拉起固定节点 {target_id} 失败: {e}", flush=True)
-                            is_connecting = True
                 else:
                     has_active_id = False
                     with lock:
@@ -1357,10 +1374,9 @@ def maintain_valid_nodes(force: bool = False) -> str:
                         print("[维护线程] 检测到当前 OpenVPN 进程已意外退出，准备自动切换节点", flush=True)
                         is_connecting = False
                         auto_switch_node()
-                        is_connecting = True
 
         try:
-            set_state(is_connecting=True, last_check_message="正在拉取最新的免费 VPN 节点列表...")
+            set_state(is_connecting=is_connecting, last_check_message="正在拉取最新的免费 VPN 节点列表...")
             candidates = fetch_candidates()
         except Exception as exc:
             vpn_utils.check_and_fix_dns()
@@ -1413,7 +1429,7 @@ def maintain_valid_nodes(force: bool = False) -> str:
             to_test_ids = [n["id"] for n in to_test]
 
         print(f"[维护线程] 正在并发检测列表中所有节点，共 {len(to_test_ids)} 个...", flush=True)
-        set_state(is_connecting=True, last_check_message="正在并发检测所有节点可用性...")
+        set_state(is_connecting=is_connecting, last_check_message="正在并发检测所有节点可用性...")
         test_multiple_nodes(to_test_ids)
 
         is_connecting = False
@@ -5243,7 +5259,7 @@ def main() -> None:
             "active_openvpn_node_id": "",
             "last_fetch_status": "starting",
             "last_check_message": "服务已启动，正在初始化网络并获取候选 VPN 节点...",
-            "is_connecting": True,
+            "is_connecting": False,
             "active_node_latency": "正在准备",
             "blacklisted_nodes": 0,
         },

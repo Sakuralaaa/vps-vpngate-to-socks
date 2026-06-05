@@ -80,7 +80,7 @@ EOF
 )"
 
 echo "Patching deployment $NAMESPACE/$DEPLOYMENT ..."
-kubectl -n "$NAMESPACE" patch deployment "$DEPLOYMENT" --type=merge -p "$PATCH"
+kubectl -n "$NAMESPACE" patch deployment "$DEPLOYMENT" --type=strategic -p "$PATCH"
 kubectl -n "$NAMESPACE" rollout status "deployment/$DEPLOYMENT" --timeout=180s
 
 POD="$(

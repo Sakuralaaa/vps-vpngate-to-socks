@@ -97,10 +97,13 @@ UI_HOST=0.0.0.0
 LOCAL_PROXY_HOST=0.0.0.0
 LOCAL_PROXY_PORT=7928
 VPNGATE_DATA_DIR=/app/data
+OPENVPN_PROBE_MAX_WORKERS=6
 PUBLIC_HOST=你的Web访问域名
 ```
 
 这里要填真实生成的域名，例如 `mygate.zeabur.app`。不要填写 `PUBLIC_HOST=${ZEABUR_WEB_DOMAIN}` 这种占位符，除非你的平台会在注入容器前先展开它。
+
+如果 VPS 配置较小，建议把 `OPENVPN_PROBE_MAX_WORKERS` 调低到 `3`，避免后台测速同时启动太多 OpenVPN 探测进程。
 
 6. 暴露 Web HTTP 端口 `8787`。
 7. 暴露 TCP 代理端口 `7928`。
