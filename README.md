@@ -101,18 +101,20 @@ ghcr.io/sakuralaaa/vps-vpngate-to-socks:latest
 
 在 Zeabur 添加 Docker Image Service，填入上面的镜像地址，再按方式 A 设置环境变量和端口。
 
-首次启动会在日志里输出 Web 地址、账号和密码。配置也会保存到：
+首次启动后打开：
 
 ```text
-./data/ui_auth.json
+https://你的域名/manage/
 ```
+
+第一次打开会要求你设置管理密码。之后进入 Web 管理界面只需要输入这个密码，不需要用户名。
 
 ## 使用方式
 
 打开：
 
 ```text
-http://你的VPS公网IP:8787/<随机路径>/
+http://你的VPS公网IP:8787/manage/
 ```
 
 登录后进入 `管理员 -> Proxy / Clash`：

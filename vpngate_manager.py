@@ -212,8 +212,8 @@ def load_ui_config() -> dict[str, Any]:
     with lock:
         auth_file = DATA_DIR / "ui_auth.json"
         config = {
-            "username": "",
-            "secret_path": "EJsW2EeBo9lY",
+            "username": "admin",
+            "secret_path": "manage",
             "password": "",
             "host": "0.0.0.0",
             "port": 8787,
@@ -240,12 +240,13 @@ def load_ui_config() -> dict[str, Any]:
             except Exception:
                 pass
 
-        if not config.get("username"):
-            config["username"] = generate_random_username()
+        if config.get("secret_path") != "manage" and config.get("username") not in ("", "admin"):
+            config["username"] = "admin"
+            config["password"] = ""
             updated = True
 
-        if not config.get("password"):
-            config["password"] = generate_random_password()
+        if config.get("secret_path") != "manage":
+            config["secret_path"] = "manage"
             updated = True
 
         if not config.get("proxy_username"):
@@ -360,9 +361,8 @@ def get_state() -> dict[str, Any]:
 
     # Pre-populate settings inputs in UI
     ui_cfg = load_ui_config()
-    state["username"] = ui_cfg.get("username", "admin")
     state["port"] = ui_cfg.get("port", 8787)
-    state["secret_path"] = ui_cfg.get("secret_path", "EJsW2EeBo9lY")
+    state["secret_path"] = "manage"
     state["proxy_port"] = ui_cfg.get("proxy_port", 7928)
     state["proxy_username"] = ui_cfg.get("proxy_username", "proxy")
     state["proxy_password"] = ui_cfg.get("proxy_password", "")
@@ -1667,18 +1667,12 @@ LOGIN_HTML = r"""<!DOCTYPE html>
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
       </div>
-      <h2 class="login-title">AimiliVPN</h2>
-      <p class="login-subtitle">请输入您的管理账号和安全密码以继续</p>
+      <h2 class="login-title">VPNGate-to-VPS</h2>
+      <p class="login-subtitle" id="login_subtitle">请输入管理密码以继续</p>
 
       <form id="login_form" onsubmit="handleLogin(event)">
         <div class="form-group">
-          <label class="form-label" for="username">管理账号</label>
-          <div class="input-wrapper">
-            <input type="text" id="username" name="username" class="input-field" placeholder="请输入管理账号" required autocomplete="username">
-          </div>
-        </div>
-        <div class="form-group" style="margin-top: 16px;">
-          <label class="form-label" for="password">安全密码</label>
+          <label class="form-label" for="password">管理密码</label>
           <div class="input-wrapper">
             <input type="password" id="password" name="password" class="input-field" placeholder="请输入安全密码" required autocomplete="current-password">
           </div>
@@ -1693,9 +1687,21 @@ LOGIN_HTML = r"""<!DOCTYPE html>
   </div>
 
   <script>
+    let setupRequired = false;
+
+    async function loadAuthStatus() {
+      try {
+        const response = await fetch("./api/auth_status");
+        const data = await response.json();
+        setupRequired = !!data.setup_required;
+        document.getElementById("login_subtitle").textContent = setupRequired ? "首次打开，请设置管理密码" : "请输入管理密码以继续";
+        document.getElementById("submit_btn").querySelector("span").textContent = setupRequired ? "设置并进入" : "登录";
+        document.getElementById("password").placeholder = setupRequired ? "请设置至少 6 位管理密码" : "请输入管理密码";
+      } catch (err) {}
+    }
+
     async function handleLogin(e) {
       e.preventDefault();
-      const uname = document.getElementById("username").value.trim();
       const pwd = document.getElementById("password").value.trim();
       const errorText = document.getElementById("error_text");
       const submitBtn = document.getElementById("submit_btn");
@@ -1708,25 +1714,27 @@ LOGIN_HTML = r"""<!DOCTYPE html>
         const response = await fetch("./api/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: uname, password: pwd })
+          body: JSON.stringify({ password: pwd, setup: setupRequired })
         });
 
         const data = await response.json();
         if (response.ok && data.ok) {
           window.location.reload();
         } else {
-          errorText.textContent = data.error || "账号或密码不正确，请重新输入";
+          errorText.textContent = data.error || "密码不正确，请重新输入";
           errorText.style.display = "block";
           submitBtn.disabled = false;
-          submitBtn.querySelector("span").textContent = "登录";
+          submitBtn.querySelector("span").textContent = setupRequired ? "设置并进入" : "登录";
         }
       } catch (err) {
         errorText.textContent = "连接服务器失败，请稍后重试";
         errorText.style.display = "block";
         submitBtn.disabled = false;
-        submitBtn.querySelector("span").textContent = "登录";
+        submitBtn.querySelector("span").textContent = setupRequired ? "设置并进入" : "登录";
       }
     }
+
+    loadAuthStatus();
   </script>
 </body>
 </html>
@@ -2680,7 +2688,7 @@ INDEX_HTML = r"""<!doctype html>
       <div id="admin_dropdown" class="dropdown-content">
         <a href="javascript:void(0)" onclick="openCredentialsModal()">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:14px; height:14px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-          账号密码设置
+          管理密码设置
         </a>
         <a href="javascript:void(0)" onclick="openNetworkModal()">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:14px; height:14px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -2773,7 +2781,7 @@ INDEX_HTML = r"""<!doctype html>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:20px; height:20px; color: var(--primary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-          账号密码设置
+          管理密码设置
         </h3>
         <button type="button" onclick="closeCredentialsModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:18px; height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -2785,13 +2793,13 @@ INDEX_HTML = r"""<!doctype html>
 
       <form id="credentials_form" onsubmit="saveCredentials(event)">
         <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" for="cred_username">新管理账号</label>
-          <input type="text" id="cred_username" class="input-field" required placeholder="请输入新管理账号">
+          <label class="form-label" for="cred_password">新管理密码</label>
+          <input type="password" id="cred_password" class="input-field" required placeholder="请输入新管理密码">
         </div>
 
         <div class="form-group" style="margin-bottom: 24px;">
-          <label class="form-label" for="cred_password">新安全密码</label>
-          <input type="password" id="cred_password" class="input-field" required placeholder="请输入新安全密码">
+          <label class="form-label" for="cred_password_confirm">确认新密码</label>
+          <input type="password" id="cred_password_confirm" class="input-field" required placeholder="请再次输入新密码">
         </div>
 
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -2824,9 +2832,9 @@ INDEX_HTML = r"""<!doctype html>
           <input type="number" id="net_port" class="input-field" required min="1" max="65535" placeholder="8787">
         </div>
 
-        <div class="form-group" style="margin-bottom: 12px;">
+        <div class="form-group" style="margin-bottom: 12px; display: none;">
           <label class="form-label" for="net_suffix">登录安全后缀 (仅字母和数字)</label>
-          <input type="text" id="net_suffix" class="input-field" required pattern="[A-Za-z0-9]+" placeholder="EJsW2EeBo9lY">
+          <input type="text" id="net_suffix" class="input-field" required pattern="[A-Za-z0-9]+" value="manage" placeholder="manage">
         </div>
 
         <div class="form-group" style="margin-bottom: 16px;">
@@ -3837,9 +3845,6 @@ function openCredentialsModal() {
   $("credentials_error").style.display = "none";
   $("credentials_success").style.display = "none";
   $("credentials_form").reset();
-  if (state) {
-    $("cred_username").value = state.username || "";
-  }
   $("credentials_modal").style.display = "flex";
   $("admin_dropdown").style.display = "none";
 }
@@ -3857,11 +3862,23 @@ async function saveCredentials(e) {
   errorDivEl.style.display = "none";
   successDiv.style.display = "none";
 
-  const username = $("cred_username").value.trim();
   const password = $("cred_password").value.trim();
+  const passwordConfirm = $("cred_password_confirm").value.trim();
 
-  if (!username || !password) {
-    errorDivEl.textContent = "用户名和密码不能为空";
+  if (!password) {
+    errorDivEl.textContent = "管理密码不能为空";
+    errorDivEl.style.display = "block";
+    return;
+  }
+
+  if (password.length < 6) {
+    errorDivEl.textContent = "管理密码至少需要 6 位";
+    errorDivEl.style.display = "block";
+    return;
+  }
+
+  if (password !== passwordConfirm) {
+    errorDivEl.textContent = "两次输入的密码不一致";
     errorDivEl.style.display = "block";
     return;
   }
@@ -3873,12 +3890,12 @@ async function saveCredentials(e) {
     const res = await fetch("./api/update_credentials", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ password })
     });
 
     const data = await res.json();
     if (res.ok && data.ok) {
-      successDiv.textContent = "账号密码保存成功，已即时生效！";
+      successDiv.textContent = "管理密码保存成功，已即时生效！";
       successDiv.style.display = "block";
       setTimeout(() => {
         closeCredentialsModal();
@@ -4047,7 +4064,7 @@ async function saveNetwork(e) {
   successDiv.style.display = "none";
 
   const port = parseInt($("net_port").value);
-  const suffix = $("net_suffix").value.trim();
+  const suffix = "manage";
   const proxyPort = parseInt($("net_proxy_port").value);
   const routingMode = $("net_routing_mode").value;
   const forceCountry = $("net_force_country").value;
@@ -4066,12 +4083,6 @@ async function saveNetwork(e) {
 
   if (proxyPort === port) {
     errorDivEl.textContent = "代理出站端口不能与网页管理端口相同";
-    errorDivEl.style.display = "block";
-    return;
-  }
-
-  if (!/^[A-Za-z0-9]+$/.test(suffix)) {
-    errorDivEl.textContent = "登录安全后缀仅能由英文字母和数字组成";
     errorDivEl.style.display = "block";
     return;
   }
@@ -4600,14 +4611,16 @@ def subscription_url_for_request(headers: Any, token: str) -> str:
 
 class Handler(BaseHTTPRequestHandler):
     def get_secret_path(self) -> str:
-        ui_cfg = load_ui_config()
-        return ui_cfg.get("secret_path", "EJsW2EeBo9lY")
+        return "manage"
+
+    def setup_required(self) -> bool:
+        return not bool(load_ui_config().get("password", ""))
 
     def is_authorized(self) -> bool:
         ui_cfg = load_ui_config()
         pwd = ui_cfg.get("password")
         if not pwd:
-            return True
+            return False
 
         cookie_header = self.headers.get("Cookie", "")
         cookies = {}
@@ -4630,8 +4643,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def validate_path(self) -> str:
         secret_path = self.get_secret_path()
-        if not secret_path:
-            return self.path
+        raw_path = urllib.parse.urlsplit(self.path).path
+        if raw_path == "/":
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header("Location", f"/{secret_path}/")
+            self.end_headers()
+            return ""
         if self.path == f"/{secret_path}":
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", f"/{secret_path}/")
@@ -4671,6 +4688,10 @@ class Handler(BaseHTTPRequestHandler):
 
         effective_path = self.validate_path()
         if effective_path == "": return
+
+        if effective_path == "/api/auth_status":
+            self.send_json({"setup_required": self.setup_required()})
+            return
 
         if not self.is_authorized():
             if effective_path in ("/", "/index.html"):
@@ -4855,13 +4876,27 @@ class Handler(BaseHTTPRequestHandler):
                 length = parse_int(self.headers.get("Content-Length"))
                 payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
                 input_pwd = str(payload.get("password") or "")
-                input_uname = str(payload.get("username") or "")
+                setup_mode = bool(payload.get("setup"))
 
                 ui_cfg = load_ui_config()
                 expected_pwd = ui_cfg.get("password", "")
-                expected_uname = ui_cfg.get("username", "admin")
 
-                if expected_pwd and input_pwd == expected_pwd and input_uname == expected_uname:
+                if not expected_pwd:
+                    if not setup_mode:
+                        self.send_json({"ok": False, "error": "请先设置管理密码"}, HTTPStatus.BAD_REQUEST)
+                        return
+                    if len(input_pwd) < 6:
+                        self.send_json({"ok": False, "error": "管理密码至少需要 6 位"}, HTTPStatus.BAD_REQUEST)
+                        return
+                    ui_cfg["password"] = input_pwd
+                    ui_cfg["username"] = "admin"
+                    ui_cfg["secret_path"] = "manage"
+                    auth_file = DATA_DIR / "ui_auth.json"
+                    with lock:
+                        DATA_DIR.mkdir(exist_ok=True, parents=True)
+                        auth_file.write_text(json.dumps(ui_cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+
+                if input_pwd == ui_cfg.get("password", ""):
                     token = uuid.uuid4().hex
                     with lock:
                         active_sessions[token] = time.time() + 30 * 24 * 3600
@@ -4873,7 +4908,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(json.dumps({"ok": True}).encode("utf-8"))
                 else:
-                    self.send_json({"ok": False, "error": "用户名或密码不正确，请重新输入"}, HTTPStatus.FORBIDDEN)
+                    self.send_json({"ok": False, "error": "密码不正确，请重新输入"}, HTTPStatus.FORBIDDEN)
             except Exception as exc:
                 self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
@@ -4911,15 +4946,18 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 length = parse_int(self.headers.get("Content-Length"))
                 payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-                new_username = str(payload.get("username") or "").strip()
                 new_password = str(payload.get("password") or "").strip()
 
-                if not new_username or not new_password:
-                    self.send_json({"ok": False, "error": "用户名和密码不能为空"}, HTTPStatus.BAD_REQUEST)
+                if not new_password:
+                    self.send_json({"ok": False, "error": "管理密码不能为空"}, HTTPStatus.BAD_REQUEST)
+                    return
+                if len(new_password) < 6:
+                    self.send_json({"ok": False, "error": "管理密码至少需要 6 位"}, HTTPStatus.BAD_REQUEST)
                     return
 
                 ui_cfg = load_ui_config()
-                ui_cfg["username"] = new_username
+                ui_cfg["username"] = "admin"
+                ui_cfg["secret_path"] = "manage"
                 ui_cfg["password"] = new_password
 
                 auth_file = DATA_DIR / "ui_auth.json"
@@ -4927,7 +4965,7 @@ class Handler(BaseHTTPRequestHandler):
                     DATA_DIR.mkdir(exist_ok=True, parents=True)
                     auth_file.write_text(json.dumps(ui_cfg, ensure_ascii=False, indent=2), encoding="utf-8")
 
-                self.send_json({"ok": True, "message": "账号密码配置更新成功，已即时生效！"})
+                self.send_json({"ok": True, "message": "管理密码已更新"})
             except Exception as exc:
                 self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
@@ -4984,7 +5022,7 @@ class Handler(BaseHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
 
                 new_port = payload.get("port")
-                new_suffix = str(payload.get("secret_path") or "").strip()
+                new_suffix = "manage"
                 new_proxy_port = payload.get("proxy_port")
                 routing_mode = str(payload.get("routing_mode") or "auto").strip()
                 force_country = str(payload.get("force_country") or "").strip()
@@ -5019,11 +5057,11 @@ class Handler(BaseHTTPRequestHandler):
 
                 ui_cfg = load_ui_config()
                 expected_port = ui_cfg.get("port", 8787)
-                expected_suffix = ui_cfg.get("secret_path", "EJsW2EeBo9lY")
+                expected_suffix = "manage"
                 expected_proxy_port = ui_cfg.get("proxy_port", 7928)
 
                 ui_cfg["port"] = new_port_int
-                ui_cfg["secret_path"] = new_suffix
+                ui_cfg["secret_path"] = "manage"
                 ui_cfg["proxy_port"] = new_proxy_port_int
                 ui_cfg["routing_mode"] = routing_mode
                 ui_cfg["force_country"] = force_country
