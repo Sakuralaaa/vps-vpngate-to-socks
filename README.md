@@ -64,6 +64,24 @@ Zeabur 可以从 GitHub 仓库或 Docker 镜像部署服务，但此项目依赖
 
 如果 Zeabur 服务配置里无法开启这些权限，请改为在你的 VPS 上 SSH 执行 Docker Compose 部署。
 
+### 自托管 Zeabur/K3s TUN 补丁
+
+如果 Zeabur 跑在你自己的 VPS 上，它可能会创建普通 K3s Deployment：容器里没有 `/dev/net/tun`，也没有 `NET_ADMIN`。这种情况下 VPNGate 节点可能显示有 ping 延迟，但 OpenVPN 无法创建 `tun0`，代理会返回 502，或者节点看起来全部不可用。
+
+SSH 到 VPS 宿主机后运行：
+
+```bash
+sh scripts/zeabur-k3s-tun-patch.sh
+```
+
+也可以显式传入 namespace 和 deployment：
+
+```bash
+sh scripts/zeabur-k3s-tun-patch.sh environment-xxxx service-xxxx
+```
+
+脚本会给 Deployment 合并 `privileged: true`、`NET_ADMIN`、`NET_RAW`，并挂载宿主机 `/dev/net/tun`，然后等待 pod 滚动完成。Zeabur 后续重新部署可能覆盖这个补丁；如果新 pod 又丢失 `/dev/net/tun`，需要重新执行一次。
+
 ### 方式 A：从 GitHub 仓库部署
 
 1. 在 Zeabur 新建 Project。
@@ -81,6 +99,8 @@ LOCAL_PROXY_PORT=7928
 VPNGATE_DATA_DIR=/app/data
 PUBLIC_HOST=你的Web访问域名
 ```
+
+这里要填真实生成的域名，例如 `mygate.zeabur.app`。不要填写 `PUBLIC_HOST=${ZEABUR_WEB_DOMAIN}` 这种占位符，除非你的平台会在注入容器前先展开它。
 
 6. 暴露 Web HTTP 端口 `8787`。
 7. 暴露 TCP 代理端口 `7928`。
