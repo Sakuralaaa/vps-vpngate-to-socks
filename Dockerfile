@@ -30,6 +30,6 @@ ENV VPNGATE_DATA_DIR=/app/data \
 EXPOSE 8787 7928
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD-SHELL python3 -c "import os,socket; s=socket.create_connection(('127.0.0.1', int(os.environ.get('UI_PORT','8787'))), 3); s.close()"
+  CMD python3 -c "import os,socket; s=socket.create_connection(('127.0.0.1', int(os.environ.get('UI_PORT','8787'))), 3); s.close()"
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
