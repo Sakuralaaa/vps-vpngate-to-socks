@@ -1796,17 +1796,17 @@ INDEX_HTML = r"""<!doctype html>
 
     :root {
       --bg-dark: #fff7fb;
-      --bg-surface: rgba(255, 255, 255, 0.9);
-      --bg-surface-hover: rgba(253, 242, 248, 0.96);
-      --border-color: rgba(219, 39, 119, 0.14);
-      --border-color-hover: rgba(219, 39, 119, 0.34);
-      --text-primary: #3b1023;
-      --text-secondary: #8a4b68;
-      --primary: #ec4899;
-      --primary-gradient: linear-gradient(135deg, #f472b6 0%, #db2777 100%);
-      --primary-hover: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
-      --success: #10b981;
-      --success-gradient: linear-gradient(135deg, #34d399 0%, #059669 100%);
+      --bg-surface: rgba(255, 255, 255, 0.96);
+      --bg-surface-hover: rgba(255, 241, 248, 0.98);
+      --border-color: rgba(190, 24, 93, 0.22);
+      --border-color-hover: rgba(190, 24, 93, 0.5);
+      --text-primary: #2d0717;
+      --text-secondary: #5f1d38;
+      --primary: #db2777;
+      --primary-gradient: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+      --primary-hover: linear-gradient(135deg, #db2777 0%, #9d174d 100%);
+      --success: #059669;
+      --success-gradient: linear-gradient(135deg, #10b981 0%, #047857 100%);
       --danger: #e11d48;
       --danger-gradient: linear-gradient(135deg, #fb7185 0%, #e11d48 100%);
       --warning: #f59e0b;
@@ -1853,10 +1853,10 @@ INDEX_HTML = r"""<!doctype html>
       font-size: 20px;
       font-weight: 700;
       margin: 0;
-      background: linear-gradient(135deg, #f9a8d4 0%, #db2777 100%);
+      background: linear-gradient(135deg, #db2777 0%, #9d174d 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      letter-spacing: -0.5px;
+      letter-spacing: 0;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -1898,7 +1898,7 @@ INDEX_HTML = r"""<!doctype html>
       align-items: center;
       justify-content: center;
       gap: 6px;
-      background: rgba(255, 255, 255, 0.04);
+      background: #ffffff;
       color: var(--text-primary);
       white-space: nowrap;
       text-decoration: none;
@@ -1906,8 +1906,8 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     button:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(244, 114, 182, 0.12);
+      border-color: var(--border-color-hover);
       transform: translateY(-1px);
     }
 
@@ -2061,7 +2061,7 @@ INDEX_HTML = r"""<!doctype html>
       width: 44px;
       height: 44px;
       border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(244, 114, 182, 0.1);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -2083,7 +2083,7 @@ INDEX_HTML = r"""<!doctype html>
       align-items: center;
       gap: 6px;
       padding: 4px 10px;
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(190, 24, 93, 0.14);
       border: 1px solid var(--border-color);
       border-radius: 6px;
       color: var(--text-secondary);
@@ -2195,12 +2195,12 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     th {
-      background: rgba(17, 24, 39, 0.4);
+      background: #9d174d;
       font-size: 12px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-secondary);
+      letter-spacing: 0;
+      color: #ffffff;
     }
 
     tr {
@@ -2208,7 +2208,7 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     tr:hover {
-      background: rgba(255, 255, 255, 0.015);
+      background: rgba(244, 114, 182, 0.08);
     }
 
     .active-row {
@@ -2257,20 +2257,20 @@ INDEX_HTML = r"""<!doctype html>
 
     .available {
       background: rgba(16, 185, 129, 0.1);
-      color: #34d399;
-      border-color: rgba(16, 185, 129, 0.2);
+      color: #047857;
+      border-color: rgba(5, 150, 105, 0.28);
     }
 
     .unavailable {
       background: rgba(244, 63, 94, 0.1);
-      color: #fb7185;
-      border-color: rgba(244, 63, 94, 0.2);
+      color: #be123c;
+      border-color: rgba(225, 29, 72, 0.28);
     }
 
     .not_checked {
       background: rgba(245, 158, 11, 0.1);
-      color: #fbbf24;
-      border-color: rgba(245, 158, 11, 0.2);
+      color: #a16207;
+      border-color: rgba(245, 158, 11, 0.32);
     }
 
     .current-badge {
@@ -2311,8 +2311,8 @@ INDEX_HTML = r"""<!doctype html>
 
     .test-btn {
       background: transparent;
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #047857;
+      border: 1px solid rgba(5, 150, 105, 0.46);
       border-radius: 6px;
       padding: 0 12px;
       height: 30px;
@@ -2337,7 +2337,7 @@ INDEX_HTML = r"""<!doctype html>
     .mono {
       font-family: 'JetBrains Mono', Consolas, monospace;
       font-size: 13px;
-      color: #e2e8f0;
+      color: #6b1037;
     }
 
     .latency-val {
@@ -2349,17 +2349,17 @@ INDEX_HTML = r"""<!doctype html>
 
     .latency-good {
       background: rgba(16, 185, 129, 0.1);
-      color: #34d399;
+      color: #047857;
     }
 
     .latency-medium {
       background: rgba(245, 158, 11, 0.1);
-      color: #fbbf24;
+      color: #a16207;
     }
 
     .latency-poor {
       background: rgba(244, 63, 94, 0.1);
-      color: #fb7185;
+      color: #be123c;
     }
 
     @media (max-width: 768px) {
@@ -2480,7 +2480,7 @@ INDEX_HTML = r"""<!doctype html>
     .input-field {
       width: 100%;
       height: 40px;
-      background: rgba(255, 255, 255, 0.03);
+      background: #ffffff;
       border: 1px solid var(--border-color);
       border-radius: 8px;
       padding: 0 12px;
@@ -2531,7 +2531,7 @@ INDEX_HTML = r"""<!doctype html>
       更新节点
     </button>
     <div class="dropdown">
-      <button id="admin_btn" class="btn-primary" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); color: var(--text-primary);">
+      <button id="admin_btn" class="btn-primary" style="background: rgba(190, 24, 93, 0.18); border: 1px solid var(--border-color); color: var(--text-primary);">
         <svg xmlns="http://www.w3.org/2000/svg" style="width:16px; height:16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
         管理员
         <svg xmlns="http://www.w3.org/2000/svg" style="width:12px; height:12px; margin-left: 2px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
@@ -2557,7 +2557,7 @@ INDEX_HTML = r"""<!doctype html>
           <svg xmlns="http://www.w3.org/2000/svg" style="width:14px; height:14px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
           日志
         </a>
-        <a href="javascript:void(0)" onclick="logoutAdmin()" style="color: var(--danger); border-top: 1px solid rgba(255,255,255,0.05);">
+        <a href="javascript:void(0)" onclick="logoutAdmin()" style="color: var(--danger); border-top: 1px solid rgba(244,114,182,0.14);">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:14px; height:14px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           退出
         </a>
@@ -2635,7 +2635,7 @@ INDEX_HTML = r"""<!doctype html>
           <svg xmlns="http://www.w3.org/2000/svg" style="width:20px; height:20px; color: var(--primary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
           管理密码设置
         </h3>
-        <button type="button" onclick="closeCredentialsModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+        <button type="button" onclick="closeCredentialsModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(244,114,182,0.14)'" onmouseout="this.style.background='transparent'">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:18px; height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
@@ -2670,7 +2670,7 @@ INDEX_HTML = r"""<!doctype html>
           <svg xmlns="http://www.w3.org/2000/svg" style="width:20px; height:20px; color: var(--primary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           代理与网络设置
         </h3>
-        <button type="button" onclick="closeNetworkModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+        <button type="button" onclick="closeNetworkModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(244,114,182,0.14)'" onmouseout="this.style.background='transparent'">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:18px; height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
@@ -2694,10 +2694,10 @@ INDEX_HTML = r"""<!doctype html>
           <input type="number" id="net_proxy_port" class="input-field" required min="1024" max="65535" placeholder="7928">
         </div>
 
-        <div style="border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 16px; margin-bottom: 16px;">
+        <div style="border-top: 1px dashed rgba(190,24,93,0.18); padding-top: 16px; margin-bottom: 16px;">
           <div class="form-group" style="margin-bottom: 12px;">
             <label class="form-label" for="net_routing_mode">IP 出站路由模式</label>
-            <select id="net_routing_mode" class="input-field" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); color: var(--text-primary); outline: none; cursor: pointer; width: 100%; height: 40px; border-radius: 8px; padding: 0 12px;" onchange="handleRoutingModeChange(this.value)">
+            <select id="net_routing_mode" class="input-field" style="background: rgba(244, 114, 182, 0.08); border: 1px solid var(--border-color); color: var(--text-primary); outline: none; cursor: pointer; width: 100%; height: 40px; border-radius: 8px; padding: 0 12px;" onchange="handleRoutingModeChange(this.value)">
               <option value="auto">自动配置 (智能切换，最稳定)</option>
               <option value="fixed_ip">固定 IP (永不自动换 IP)</option>
               <option value="fixed_region">固定地区 (锁定特定国家节点)</option>
@@ -2706,12 +2706,12 @@ INDEX_HTML = r"""<!doctype html>
 
           <div id="net_force_country_group" class="form-group" style="margin-bottom: 12px; display: none;">
             <label class="form-label" for="net_force_country">锁定国家地区</label>
-            <select id="net_force_country" class="input-field" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); color: var(--text-primary); outline: none; cursor: pointer; width: 100%; height: 40px; border-radius: 8px; padding: 0 12px;">
+            <select id="net_force_country" class="input-field" style="background: rgba(244, 114, 182, 0.08); border: 1px solid var(--border-color); color: var(--text-primary); outline: none; cursor: pointer; width: 100%; height: 40px; border-radius: 8px; padding: 0 12px;">
               <option value="">正在加载节点国家...</option>
             </select>
           </div>
 
-          <div id="net_routing_warning" style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; padding: 8px 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; margin-top: 8px;">
+          <div id="net_routing_warning" style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; padding: 8px 12px; background: rgba(244, 114, 182, 0.06); border: 1px solid rgba(190, 24, 93, 0.14); border-radius: 6px; margin-top: 8px;">
             ℹ️ <strong>自动配置</strong>：全自动测试并选择最佳IP。在使用过程中，如果当前连接节点没有失效，将不再更换IP；如果当前节点失效，系统将立刻秒级自动漂移到其他最快的可用节点。
           </div>
         </div>
@@ -2729,14 +2729,14 @@ INDEX_HTML = r"""<!doctype html>
     <div class="modal-content" style="max-width: 560px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary);">Proxy / Clash</h3>
-        <button type="button" onclick="closeProxyAccessModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+        <button type="button" onclick="closeProxyAccessModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(244,114,182,0.14)'" onmouseout="this.style.background='transparent'">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:18px; height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
       <div id="proxy_access_error" style="color: var(--danger); font-size: 13px; margin-bottom: 16px; padding: 8px 12px; background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.2); border-radius: 6px; display: none;"></div>
       <div id="proxy_access_success" style="color: var(--success); font-size: 13px; margin-bottom: 16px; padding: 8px 12px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); border-radius: 6px; display: none;"></div>
 
-      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+      <div style="background: rgba(244,114,182,0.08); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
         <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">SOCKS5 / HTTP proxy</div>
         <div id="proxy_access_url" class="mono" style="font-size: 13px; color: var(--text-primary); word-break: break-all;">-</div>
       </div>
@@ -2755,7 +2755,7 @@ INDEX_HTML = r"""<!doctype html>
         </div>
       </form>
 
-      <div style="border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 16px;">
+      <div style="border-top: 1px dashed rgba(190,24,93,0.18); padding-top: 16px;">
         <label class="form-label" for="clash_subscription_url">Clash 订阅链接</label>
         <input type="text" id="clash_subscription_url" class="input-field mono" readonly style="font-size: 12px;">
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap;">
@@ -2774,7 +2774,7 @@ INDEX_HTML = r"""<!doctype html>
           <svg xmlns="http://www.w3.org/2000/svg" style="width:20px; height:20px; color: var(--primary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
           网关运行状态与自检
         </h3>
-        <button type="button" onclick="closeGatewayModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+        <button type="button" onclick="closeGatewayModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(244,114,182,0.14)'" onmouseout="this.style.background='transparent'">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:18px; height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
@@ -2788,10 +2788,10 @@ INDEX_HTML = r"""<!doctype html>
       </div>
 
       <!-- 分割线 -->
-      <div style="border-top: 1px dashed rgba(255, 255, 255, 0.08); margin: 20px 0;"></div>
+      <div style="border-top: 1px dashed rgba(190, 24, 93, 0.18); margin: 20px 0;"></div>
 
       <!-- 本地代理出口检测 -->
-      <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
+      <div style="background: rgba(244, 114, 182, 0.06); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
           <div class="stat-icon-wrapper" style="background: rgba(244, 114, 182, 0.12); border-color: rgba(219, 39, 119, 0.18); width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;">
             <svg xmlns="http://www.w3.org/2000/svg" class="stat-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--primary); width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071a10.5 10.5 0 0114.14 0M1.414 8.05a16 16 0 0121.172 0" /></svg>
@@ -2802,7 +2802,7 @@ INDEX_HTML = r"""<!doctype html>
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 241, 248, 0.92); border-radius: 8px; padding: 12px; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
           <div style="font-size: 13px; color: var(--text-secondary);">
             测试状态: <span id="proxy_status_badge" class="badge not_checked" style="margin-left: 4px;">未检测</span>
           </div>
@@ -2838,7 +2838,7 @@ INDEX_HTML = r"""<!doctype html>
 
         <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
           <label class="form-label" for="log_filter_select" style="margin: 0; font-size: 13px; color: var(--text-secondary);">日志筛选:</label>
-          <select id="log_filter_select" class="input-field" style="width: 140px; height: 32px; font-size: 12px; border-radius: 6px; padding: 0 8px; background: rgba(255, 255, 255, 0.03);" onchange="filterAndRenderLogs()">
+          <select id="log_filter_select" class="input-field" style="width: 140px; height: 32px; font-size: 12px; border-radius: 6px; padding: 0 8px; background: rgba(244, 114, 182, 0.08);" onchange="filterAndRenderLogs()">
             <option value="all">全部日志</option>
             <option value="proxy">代理相关 (Proxy)</option>
             <option value="vpn">VPN 连接 (VPN)</option>
@@ -2846,7 +2846,7 @@ INDEX_HTML = r"""<!doctype html>
           </select>
         </div>
 
-        <button type="button" onclick="closeLogsModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+        <button type="button" onclick="closeLogsModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(244,114,182,0.14)'" onmouseout="this.style.background='transparent'">
           <svg xmlns="http://www.w3.org/2000/svg" style="width:18px; height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
@@ -2860,11 +2860,11 @@ INDEX_HTML = r"""<!doctype html>
 
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; gap: 8px;">
-          <button type="button" onclick="copyLogContent()" class="btn-primary" style="height: 38px; padding: 0 16px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color);">
+          <button type="button" onclick="copyLogContent()" class="btn-primary" style="height: 38px; padding: 0 16px; background: rgba(244,114,182,0.14); color: var(--text-primary); border: 1px solid var(--border-color);">
             <svg xmlns="http://www.w3.org/2000/svg" style="width:14px; height:14px; margin-right: 4px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
             一键复制
           </button>
-          <button type="button" onclick="exportLogContent()" class="btn-primary" style="height: 38px; padding: 0 16px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color);">
+          <button type="button" onclick="exportLogContent()" class="btn-primary" style="height: 38px; padding: 0 16px; background: rgba(244,114,182,0.14); color: var(--text-primary); border: 1px solid var(--border-color);">
             <svg xmlns="http://www.w3.org/2000/svg" style="width:14px; height:14px; margin-right: 4px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
             导出日志
           </button>
@@ -3072,7 +3072,7 @@ function render(){
       <div class="active-card">
         <div class="active-card-info">
           <div class="stat-icon-wrapper" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); width: 48px; height: 48px; border-radius: 12px;">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stat-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color: #34d399; width: 24px; height: 24px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" class="stat-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color: #047857; width: 24px; height: 24px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
           <div class="active-card-details">
             <div class="active-card-title">
@@ -3622,8 +3622,8 @@ function handleRoutingModeChange(mode) {
   } else {
     countryGroup.style.display = "none";
     warningDiv.style.color = "var(--text-secondary)";
-    warningDiv.style.background = "rgba(255, 255, 255, 0.02)";
-    warningDiv.style.border = "1px solid rgba(255, 255, 255, 0.05)";
+    warningDiv.style.background = "rgba(244, 114, 182, 0.06)";
+    warningDiv.style.border = "1px solid rgba(190, 24, 93, 0.14)";
     warningDiv.innerHTML = `ℹ️ <strong>自动配置</strong>：全自动测试并选择最佳IP。在使用过程中，如果当前连接节点没有失效，将不再更换IP；如果当前节点失效，系统将立刻秒级自动漂移到其他最快的可用节点。`;
   }
 }
@@ -4027,7 +4027,7 @@ function renderGatewayServices(services) {
     const statusPulse = s.status === "running" ? '<span class="badge-pulse"></span>' : '';
 
     html += `
-      <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="background: rgba(244, 114, 182, 0.06); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <strong style="font-size: 14px; color: var(--text-primary);">${esc(s.name)}</strong>
           <span class="badge ${badgeClass}">${statusPulse}${statusText}</span>
@@ -4098,8 +4098,8 @@ function filterAndRenderLogs() {
   const linesHtml = filtered.map(l => {
     let color = "#831843";
     if (l.module === "Proxy") color = "#38bdf8";
-    if (l.module === "VPN") color = "#34d399";
-    if (l.level === "WARNING") color = "#fbbf24";
+    if (l.module === "VPN") color = "#047857";
+    if (l.level === "WARNING") color = "#a16207";
     if (l.level === "ERROR") color = "#f43f5e";
 
     return `<div style="color: ${color}; margin-bottom: 4px;">[${esc(l.timestamp)}] [${esc(l.level)}] [${esc(l.module)}] ${esc(l.message)}</div>`;
