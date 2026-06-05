@@ -1,0 +1,27 @@
+services:
+  vpngate-to-vps:
+    build: .
+    container_name: vpngate-to-vps
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - "${UI_PORT:-8787}:8787/tcp"
+      - "${PROXY_PORT:-7928}:7928/tcp"
+    volumes:
+      - ./data:/app/data
+    environment:
+      VPNGATE_DATA_DIR: /app/data
+      LOCAL_PROXY_HOST: 0.0.0.0
+      LOCAL_PROXY_PORT: 7928
+      UI_HOST: 0.0.0.0
+      UI_PORT: 8787
+      PUBLIC_HOST: ${PUBLIC_HOST:-}
+      TZ: ${TZ:-Asia/Shanghai}
+      TARGET_VALID_NODES: ${TARGET_VALID_NODES:-3}
+      MAX_SCAN_ROWS: ${MAX_SCAN_ROWS:-300}
+      FETCH_INTERVAL_SECONDS: ${FETCH_INTERVAL_SECONDS:-1260}
+      CHECK_INTERVAL_SECONDS: ${CHECK_INTERVAL_SECONDS:-1260}
