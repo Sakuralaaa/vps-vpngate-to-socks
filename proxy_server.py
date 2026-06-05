@@ -275,7 +275,7 @@ def http_proxy_auth_ok(lines: list[str]) -> bool:
 def send_http_proxy_auth_required(client: socket.socket) -> None:
     client.sendall(
         b"HTTP/1.1 407 Proxy Authentication Required\r\n"
-        b"Proxy-Authenticate: Basic realm=\"VPNGate-to-VPS\"\r\n"
+        b"Proxy-Authenticate: Basic realm=\"SakuraVPN\"\r\n"
         b"Content-Length: 0\r\n\r\n"
     )
 

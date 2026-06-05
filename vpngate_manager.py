@@ -84,6 +84,14 @@ TARGET_VALID_NODES = int(os.environ.get("TARGET_VALID_NODES", "3"))
 MAX_SCAN_ROWS = int(os.environ.get("MAX_SCAN_ROWS", "300"))
 OPENVPN_TEST_TIMEOUT_SECONDS = int(os.environ.get("OPENVPN_TEST_TIMEOUT_SECONDS", "35"))
 OPENVPN_PROBE_MAX_WORKERS = int(os.environ.get("OPENVPN_PROBE_MAX_WORKERS", "6"))
+PROXY_SPEED_TEST_URLS = [
+    item.strip()
+    for item in os.environ.get(
+        "PROXY_SPEED_TEST_URLS",
+        "https://speed.cloudflare.com/__down?bytes=1048576,http://cachefly.cachefly.net/1mb.test",
+    ).split(",")
+    if item.strip()
+]
 OPENVPN_CMD = os.environ.get("OPENVPN_CMD", "openvpn")
 OPENVPN_AUTH_USER = os.environ.get("OPENVPN_AUTH_USER", "vpn")
 OPENVPN_AUTH_PASS = os.environ.get("OPENVPN_AUTH_PASS", "vpn")
@@ -786,7 +794,7 @@ def kill_existing_openvpn_processes() -> None:
         time.sleep(0.5)
         for pattern in patterns:
             subprocess.run(["pkill", "-KILL", "-f", pattern], capture_output=True, timeout=2)
-        print("[Cleanup] Terminated existing AimiliVPN OpenVPN processes.", flush=True)
+        print("[Cleanup] Terminated existing SakuraVPN OpenVPN processes.", flush=True)
     except Exception as e:
         print(f"[Cleanup Error] Failed to kill existing OpenVPN processes: {e}", flush=True)
 
@@ -1319,10 +1327,26 @@ def connect_node(node_id: str) -> str:
         set_state(last_check_message="正在测试本地代理出站联通性与出口 IP...")
         res = check_proxy_health()
         if res["ok"]:
+            with lock:
+                nodes = read_json(NODES_FILE, [])
+                for item in nodes:
+                    if item.get("id") == node_id:
+                        item["speed_bps"] = res.get("speed_bps", 0)
+                        item["speed_mbps"] = res.get("speed_mbps", 0)
+                        item["speed_bytes"] = res.get("speed_bytes", 0)
+                        item["speed_time_ms"] = res.get("speed_time_ms", 0)
+                        item["speed_tested_at"] = time.time()
+                        break
+                write_json(NODES_FILE, nodes)
             set_state(
                 proxy_ok=True,
                 proxy_ip=res["ip"],
                 proxy_latency_ms=res["latency_ms"],
+                proxy_speed_bps=res.get("speed_bps", 0),
+                proxy_speed_mbps=res.get("speed_mbps", 0),
+                proxy_speed_bytes=res.get("speed_bytes", 0),
+                proxy_speed_time_ms=res.get("speed_time_ms", 0),
+                proxy_speed_url=res.get("speed_url", ""),
                 proxy_error=""
             )
         else:
@@ -1330,6 +1354,11 @@ def connect_node(node_id: str) -> str:
                 proxy_ok=False,
                 proxy_ip="-",
                 proxy_latency_ms=0,
+                proxy_speed_bps=0,
+                proxy_speed_mbps=0,
+                proxy_speed_bytes=0,
+                proxy_speed_time_ms=0,
+                proxy_speed_url="",
                 proxy_error=res.get("error", "未知错误")
             )
 
@@ -1496,20 +1525,20 @@ LOGIN_HTML = r"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AimiliVPN - 安全登录</title>
+  <title>SakuraVPN - 安全登录</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #090d16;
-      --bg-surface: rgba(15, 23, 42, 0.45);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --primary: #6366f1;
-      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-      --primary-hover: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      --bg-dark: #fff7fb;
+      --bg-surface: rgba(255, 255, 255, 0.88);
+      --border-color: rgba(219, 39, 119, 0.14);
+      --text-primary: #3b1023;
+      --text-secondary: #8a4b68;
+      --primary: #ec4899;
+      --primary-gradient: linear-gradient(135deg, #f472b6 0%, #db2777 100%);
+      --primary-hover: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
       --success: #10b981;
-      --danger: #f43f5e;
+      --danger: #e11d48;
     }
 
     body {
@@ -1518,8 +1547,8 @@ LOGIN_HTML = r"""<!DOCTYPE html>
       font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg-dark);
       background-image:
-        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(244, 114, 182, 0.22) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(255, 255, 255, 0.8) 0px, transparent 50%);
       height: 100vh;
       display: flex;
       align-items: center;
@@ -1541,7 +1570,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
       border: 1px solid var(--border-color);
       border-radius: 20px;
       padding: 40px 32px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 20px 40px rgba(190, 24, 93, 0.12);
       text-align: center;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -1549,8 +1578,8 @@ LOGIN_HTML = r"""<!DOCTYPE html>
     .brand-logo {
       width: 64px;
       height: 64px;
-      background: rgba(99, 102, 241, 0.1);
-      border: 1px solid rgba(99, 102, 241, 0.25);
+      background: rgba(244, 114, 182, 0.14);
+      border: 1px solid rgba(219, 39, 119, 0.24);
       border-radius: 16px;
       display: flex;
       align-items: center;
@@ -1611,7 +1640,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
     .input-field {
       width: 100%;
       height: 48px;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255, 255, 255, 0.72);
       border: 1px solid var(--border-color);
       border-radius: 10px;
       padding: 0 16px;
@@ -1625,8 +1654,8 @@ LOGIN_HTML = r"""<!DOCTYPE html>
 
     .input-field:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-      background: rgba(15, 23, 42, 0.6);
+      box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.2);
+      background: #ffffff;
     }
 
     .error-message {
@@ -1655,13 +1684,13 @@ LOGIN_HTML = r"""<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+      box-shadow: 0 4px 12px rgba(219, 39, 119, 0.22);
     }
 
     .login-btn:hover {
       background: var(--primary-hover);
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+      box-shadow: 0 6px 16px rgba(219, 39, 119, 0.3);
     }
 
     .login-btn:active {
@@ -1683,7 +1712,7 @@ LOGIN_HTML = r"""<!DOCTYPE html>
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
       </div>
-      <h2 class="login-title">VPNGate-to-VPS</h2>
+      <h2 class="login-title">SakuraVPN</h2>
       <p class="login-subtitle" id="login_subtitle">请输入管理密码以继续</p>
 
       <form id="login_form" onsubmit="handleLogin(event)">
@@ -1761,24 +1790,24 @@ INDEX_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AimiliVPN 节点池管理系统</title>
+  <title>SakuraVPN 节点管理系统</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
     :root {
-      --bg-dark: #0b0f19;
-      --bg-surface: rgba(22, 30, 49, 0.6);
-      --bg-surface-hover: rgba(30, 41, 67, 0.85);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --border-color-hover: rgba(99, 102, 241, 0.35);
-      --text-primary: #f3f4f6;
-      --text-secondary: #9ca3af;
-      --primary: #6366f1;
-      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-      --primary-hover: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      --bg-dark: #fff7fb;
+      --bg-surface: rgba(255, 255, 255, 0.9);
+      --bg-surface-hover: rgba(253, 242, 248, 0.96);
+      --border-color: rgba(219, 39, 119, 0.14);
+      --border-color-hover: rgba(219, 39, 119, 0.34);
+      --text-primary: #3b1023;
+      --text-secondary: #8a4b68;
+      --primary: #ec4899;
+      --primary-gradient: linear-gradient(135deg, #f472b6 0%, #db2777 100%);
+      --primary-hover: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
       --success: #10b981;
       --success-gradient: linear-gradient(135deg, #34d399 0%, #059669 100%);
-      --danger: #f43f5e;
+      --danger: #e11d48;
       --danger-gradient: linear-gradient(135deg, #fb7185 0%, #e11d48 100%);
       --warning: #f59e0b;
       --warning-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
@@ -1791,9 +1820,9 @@ INDEX_HTML = r"""<!doctype html>
       font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg-dark);
       background-image:
-        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
-        radial-gradient(at 50% 100%, rgba(79, 70, 229, 0.05) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(244, 114, 182, 0.22) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(255, 255, 255, 0.85) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(251, 207, 232, 0.28) 0px, transparent 50%);
       background-attachment: fixed;
       color: var(--text-primary);
       min-height: 100vh;
@@ -1802,7 +1831,7 @@ INDEX_HTML = r"""<!doctype html>
 
     header {
       padding: 16px 32px;
-      background: rgba(11, 15, 25, 0.7);
+      background: rgba(255, 255, 255, 0.88);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border-color);
@@ -1824,7 +1853,7 @@ INDEX_HTML = r"""<!doctype html>
       font-size: 20px;
       font-weight: 700;
       margin: 0;
-      background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+      background: linear-gradient(135deg, #f9a8d4 0%, #db2777 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       letter-spacing: -0.5px;
@@ -1856,7 +1885,7 @@ INDEX_HTML = r"""<!doctype html>
       gap: 12px;
     }
 
-    button, .btn-telegram {
+    button {
       height: 38px;
       border: 1px solid var(--border-color);
       border-radius: 8px;
@@ -1882,29 +1911,16 @@ INDEX_HTML = r"""<!doctype html>
       transform: translateY(-1px);
     }
 
-    .btn-telegram {
-      background: rgba(43, 162, 223, 0.15);
-      border: 1px solid rgba(43, 162, 223, 0.3);
-      color: #2ba2df;
-    }
-
-    .btn-telegram:hover {
-      background: rgba(43, 162, 223, 0.25);
-      border-color: rgba(43, 162, 223, 0.5);
-      color: #2ba2df;
-      transform: translateY(-1px);
-    }
-
     .btn-primary {
       background: var(--primary-gradient);
       color: white;
       border: none;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+      box-shadow: 0 4px 12px rgba(219, 39, 119, 0.18);
     }
 
     .btn-primary:hover {
       background: var(--primary-hover);
-      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+      box-shadow: 0 6px 16px rgba(219, 39, 119, 0.28);
     }
 
     .btn-danger {
@@ -1933,17 +1949,17 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     .active-card {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(79, 70, 229, 0.04) 100%);
+      background: linear-gradient(135deg, rgba(244, 114, 182, 0.14) 0%, rgba(255, 255, 255, 0.78) 100%);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(99, 102, 241, 0.25);
+      border: 1px solid rgba(219, 39, 119, 0.18);
       border-radius: 16px;
       padding: 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 24px;
-      box-shadow: 0 8px 32px rgba(99, 102, 241, 0.12);
+      box-shadow: 0 8px 32px rgba(219, 39, 119, 0.1);
       transition: all 0.3s ease;
       width: 100%;
       box-sizing: border-box;
@@ -1967,7 +1983,7 @@ INDEX_HTML = r"""<!doctype html>
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: #a5b4fc;
+      color: #db2777;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -2017,7 +2033,7 @@ INDEX_HTML = r"""<!doctype html>
       background: var(--bg-surface-hover);
       border-color: var(--border-color-hover);
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.1);
+      box-shadow: 0 8px 24px rgba(219, 39, 119, 0.1);
     }
 
     .stat-info {
@@ -2030,7 +2046,7 @@ INDEX_HTML = r"""<!doctype html>
       font-weight: 700;
       display: block;
       margin-bottom: 4px;
-      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      background: linear-gradient(135deg, #3b1023 0%, #be185d 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -2095,172 +2111,6 @@ INDEX_HTML = r"""<!doctype html>
       min-width: 320px;
       margin-bottom: 0 !important;
     }
-    .vps-promo-tab {
-      position: fixed;
-      right: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 38px;
-      background: var(--primary-gradient);
-      border: 1px solid var(--border-color-hover);
-      border-right: none;
-      border-radius: 8px 0 0 8px;
-      padding: 16px 6px;
-      color: white;
-      font-weight: 700;
-      font-size: 13px;
-      line-height: 1.4;
-      text-align: center;
-      cursor: pointer;
-      z-index: 999;
-      box-shadow: -4px 0 20px rgba(99, 102, 241, 0.3);
-      transition: all 0.3s ease;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-    }
-    .vps-promo-tab:hover {
-      padding-right: 10px;
-      box-shadow: -4px 0 25px rgba(99, 102, 241, 0.5);
-    }
-
-    .ad-section {
-      background: var(--bg-surface);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 24px;
-    }
-
-    .ad-card {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .ad-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .ad-badge {
-      background: var(--primary-gradient);
-      color: white;
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-weight: 700;
-      text-transform: uppercase;
-      box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
-    }
-
-    .ad-links {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 16px;
-    }
-
-    .ad-item {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 10px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      justify-content: space-between;
-      transition: all 0.2s ease;
-    }
-
-    .ad-item:hover {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: var(--border-color-hover);
-      transform: translateY(-2px);
-    }
-
-    .ad-tag {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 6px;
-      width: fit-content;
-    }
-
-    .tag-normal {
-      background: rgba(99, 102, 241, 0.15);
-      color: #a5b4fc;
-      border: 1px solid rgba(99, 102, 241, 0.2);
-    }
-
-    .tag-opt {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fde047;
-      border: 1px solid rgba(245, 158, 11, 0.2);
-    }
-
-    .tag-premium {
-      background: rgba(16, 185, 129, 0.15);
-      color: #6ee7b7;
-      border: 1px solid rgba(16, 185, 129, 0.2);
-    }
-
-    .ad-desc {
-      font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      flex: 1;
-    }
-
-    .ad-btn {
-      align-self: flex-start;
-      text-decoration: none;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--text-primary);
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: 6px;
-      transition: all 0.2s ease;
-      text-align: center;
-    }
-
-    .ad-item:hover .ad-btn {
-      background: var(--primary-gradient);
-      border-color: transparent;
-      color: white;
-      box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);
-    }
-
-    .ad-footer {
-      border-top: 1px dashed rgba(255, 255, 255, 0.08);
-      padding-top: 12px;
-      font-size: 13px;
-      color: var(--text-secondary);
-      text-align: center;
-    }
-
-    .forum-link {
-      color: #818cf8;
-      font-weight: 700;
-      text-decoration: none;
-      transition: color 0.2s ease;
-    }
-
-    .forum-link:hover {
-      color: #a5b4fc;
-      text-decoration: underline;
-    }
-
     .toolbar {
       background: var(--bg-surface);
       backdrop-filter: blur(12px);
@@ -2278,7 +2128,7 @@ INDEX_HTML = r"""<!doctype html>
     .toolbar select {
       width: 180px;
       height: 42px;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255, 255, 255, 0.78);
       border: 1px solid var(--border-color);
       border-radius: 8px;
       padding: 0 12px;
@@ -2292,15 +2142,15 @@ INDEX_HTML = r"""<!doctype html>
 
     .toolbar select:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-      background: #0f172a;
+      box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.2);
+      background: #ffffff;
     }
 
     .toolbar input {
       flex: 1;
       min-width: 250px;
       height: 42px;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255, 255, 255, 0.78);
       border: 1px solid var(--border-color);
       border-radius: 8px;
       padding: 0 16px;
@@ -2313,8 +2163,8 @@ INDEX_HTML = r"""<!doctype html>
     .toolbar input:focus {
       outline: none;
       border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-      background: rgba(15, 23, 42, 0.8);
+      box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.2);
+      background: #ffffff;
     }
 
     .table-wrapper {
@@ -2324,7 +2174,7 @@ INDEX_HTML = r"""<!doctype html>
       border: 1px solid var(--border-color);
       border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 8px 32px rgba(219, 39, 119, 0.1);
     }
 
     .table-container {
@@ -2424,9 +2274,9 @@ INDEX_HTML = r"""<!doctype html>
     }
 
     .current-badge {
-      background: rgba(99, 102, 241, 0.15);
-      color: #818cf8;
-      border-color: rgba(99, 102, 241, 0.3);
+      background: rgba(244, 114, 182, 0.14);
+      color: #db2777;
+      border-color: rgba(219, 39, 119, 0.28);
     }
 
     .table-actions {
@@ -2436,8 +2286,8 @@ INDEX_HTML = r"""<!doctype html>
 
     .connect-btn {
       background: transparent;
-      color: #818cf8;
-      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #db2777;
+      border: 1px solid rgba(219, 39, 119, 0.38);
       border-radius: 6px;
       padding: 0 12px;
       height: 30px;
@@ -2451,7 +2301,7 @@ INDEX_HTML = r"""<!doctype html>
       background: var(--primary-gradient);
       color: white;
       border-color: transparent;
-      box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+      box-shadow: 0 4px 10px rgba(219, 39, 119, 0.24);
     }
 
     .connect-btn:disabled {
@@ -2522,7 +2372,7 @@ INDEX_HTML = r"""<!doctype html>
         width: 100%;
         margin-top: 12px;
       }
-      .btn-group button, .btn-group .btn-telegram {
+      .btn-group button {
         flex: 1;
       }
       .btn-group .dropdown {
@@ -2557,10 +2407,10 @@ INDEX_HTML = r"""<!doctype html>
       right: 0;
       margin-top: 6px;
       min-width: 140px;
-      background: rgba(22, 30, 49, 0.95);
+      background: rgba(255, 255, 255, 0.96);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 25px rgba(219, 39, 119, 0.14);
       z-index: 1000;
       overflow: hidden;
       backdrop-filter: blur(10px);
@@ -2578,7 +2428,7 @@ INDEX_HTML = r"""<!doctype html>
       transition: background 0.2s;
     }
     .dropdown-content a:hover {
-      background: rgba(255,255,255,0.08);
+      background: rgba(244, 114, 182, 0.12);
     }
 
     /* Modal styles */
@@ -2591,20 +2441,20 @@ INDEX_HTML = r"""<!doctype html>
       width: 100%;
       height: 100%;
       overflow: auto;
-      background-color: rgba(9, 13, 22, 0.7);
+      background-color: rgba(136, 19, 75, 0.18);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       align-items: center;
       justify-content: center;
     }
     .modal-content {
-      background: rgba(22, 30, 49, 0.9);
+      background: rgba(255, 255, 255, 0.96);
       border: 1px solid var(--border-color);
       border-radius: 20px;
       width: 90%;
       max-width: 480px;
       padding: 32px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 20px 50px rgba(219, 39, 119, 0.16);
       position: relative;
       box-sizing: border-box;
       animation: modalFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2643,12 +2493,12 @@ INDEX_HTML = r"""<!doctype html>
     }
     .input-field:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-      background: rgba(15, 23, 42, 0.6);
+      box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.2);
+      background: #ffffff;
     }
     select option {
-      background-color: #0f172a;
-      color: #f8fafc;
+      background-color: #fff7fb;
+      color: #3b1023;
     }
   </style>
 </head>
@@ -2656,8 +2506,8 @@ INDEX_HTML = r"""<!doctype html>
 <header>
   <div class="brand">
     <h1>
-      <svg xmlns="http://www.w3.org/2000/svg" style="width:24px; height:24px; color:#818cf8;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-      AimiliVPN 节点管理系统
+      <svg xmlns="http://www.w3.org/2000/svg" style="width:24px; height:24px; color:var(--primary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+      SakuraVPN 节点管理系统
     </h1>
     <div id="status" class="status" style="display: none;"><span class="status-dot"></span>服务加载中...</div>
   </div>
@@ -2676,21 +2526,6 @@ INDEX_HTML = r"""<!doctype html>
         <option value="hosting">仅机房IP</option>
       </select>
     </div>
-    <div class="dropdown">
-      <button id="github_btn" class="btn-primary" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); color: var(--text-primary);">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 4px;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-        GITHUB
-        <svg xmlns="http://www.w3.org/2000/svg" style="width:12px; height:12px; margin-left: 2px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-      </button>
-      <div id="github_dropdown" class="dropdown-content">
-        <a href="https://github.com/baoweise-bot/aimili-vpngate" target="_blank">正式版</a>
-        <a href="https://github.com/baoweise-bot/aimili-vpngate/tree/bate" target="_blank">测试版</a>
-      </div>
-    </div>
-    <a href="https://t.me/arestemple" target="_blank" class="btn-telegram">
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 4px;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.287 5.906c-.778.324-2.334.994-4.666 2.01-.378.15-.577.298-.595.442-.03.243.275.339.69.47l.175.055c.408.133.958.288 1.243.294.26.006.549-.1.868-.32 2.179-1.471 3.304-2.214 3.374-2.23.05-.012.12-.026.166.016.047.041.042.12.037.141-.03.129-1.227 1.241-1.846 1.817-.193.18-.33.307-.358.336-.063.065-.129.13-.19.193-.34.347-.597.609-.043.974.265.175.474.319.684.457.228.15.457.301.765.503.074.049.143.098.207.143.297.206.58.404.916.373.195-.018.398-.2.502-.754.25-1.332.74-4.22.842-5.281.01-.088.001-.22-.103-.312-.104-.092-.252-.09-.323-.087a1.52 1.52 0 0 0-.254.04z"/></svg>
-      Telegram
-    </a>
     <button id="refresh" class="btn-primary" style="background: var(--success-gradient);">
       <svg xmlns="http://www.w3.org/2000/svg" style="width:16px; height:16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" /></svg>
       更新节点
@@ -2761,6 +2596,7 @@ INDEX_HTML = r"""<!doctype html>
           <tr>
             <th style="width: 110px;">状态</th>
             <th style="width: 100px;">延迟</th>
+            <th style="width: 110px;">粗速度</th>
             <th style="width: 220px;">IP 地址 : 端口</th>
             <th>物理位置</th>
             <th style="width: 100px;">ASN</th>
@@ -2930,56 +2766,6 @@ INDEX_HTML = r"""<!doctype html>
     </div>
   </div>
 
-  <!-- Ad Modal (VPS 购买推荐) -->
-  <div id="ad_modal" class="modal">
-    <div class="modal-content" style="max-width: 640px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-          <svg xmlns="http://www.w3.org/2000/svg" style="width:20px; height:20px; color: var(--warning);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-          VPS 购买推荐
-        </h3>
-        <button type="button" onclick="closeAdModal()" style="background: transparent; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
-          <svg xmlns="http://www.w3.org/2000/svg" style="width:18px; height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-      </div>
-
-      <div class="ad-links" style="grid-template-columns: 1fr; gap: 16px;">
-        <div class="ad-item">
-          <span class="ad-tag tag-normal">普通用户推荐</span>
-          <span class="ad-desc">RackNerd - 超低折扣价格，日常使用实惠方便，海外多机房可选，推荐普通家庭或低频用户。</span>
-          <a href="https://my.racknerd.com/aff.php?aff=18708" target="_blank" class="ad-btn">点击进入官网</a>
-        </div>
-        <div class="ad-item">
-          <span class="ad-tag tag-opt">网络优化推荐</span>
-          <span class="ad-desc">VMiss - 专线优化网络 (CN2 GIA/9929/CMIN2 等顶级线路)，低延迟不丢包，推荐高网络要求用户。</span>
-          <a href="https://app.vmiss.com/aff.php?aff=4619" target="_blank" class="ad-btn">点击进入官网</a>
-        </div>
-        <div class="ad-item">
-          <span class="ad-tag tag-premium">高端企业推荐</span>
-          <span class="ad-desc">BandwagonHost (搬瓦工) - 直连三网顶级专线，经典高带宽 CN2 GIA 线路，超凡稳定速度。</span>
-          <a href="https://bandwagonhost.com/aff.php?aff=81790" target="_blank" class="ad-btn">点击进入官网</a>
-        </div>
-      </div>
-
-      <div class="ad-footer" style="margin-top: 20px;">
-        官方技术支持及优质资源交流论坛：<a href="https://339936.xyz" target="_blank" class="forum-link">339936.xyz</a>
-      </div>
-
-      <div class="ad-footer" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; text-align: left; font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
-        <div style="font-weight: bold; color: var(--text-primary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-          <svg xmlns="http://www.w3.org/2000/svg" style="width:16px; height:16px; color: var(--primary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          🎁 捐赠支持项目开发：
-        </div>
-        <div style="font-family: monospace; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px; margin-top: 6px; word-break: break-all; select-all: true;">
-          <span style="color: var(--primary); font-weight: bold;">BNB (BSC):</span> 0xB6d78c42CEB0687A31B8cfEBE4b51b6eB8953C17<br>
-          <span style="color: var(--primary); font-weight: bold;">TRX (TRC20):</span> TSdzCW6JvsrqcppodYjhSrku4mYmDJ9pxf
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="vps-promo-tab" onclick="openAdModal()">VPS购买推荐</div>
-
   <!-- Gateway Modal (网关自检与代理测试) -->
   <div id="gateway_modal" class="modal">
     <div class="modal-content" style="max-width: 600px; width: 90%;">
@@ -3007,7 +2793,7 @@ INDEX_HTML = r"""<!doctype html>
       <!-- 本地代理出口检测 -->
       <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-          <div class="stat-icon-wrapper" style="background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.2); width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;">
+          <div class="stat-icon-wrapper" style="background: rgba(244, 114, 182, 0.12); border-color: rgba(219, 39, 119, 0.18); width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;">
             <svg xmlns="http://www.w3.org/2000/svg" class="stat-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--primary); width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071a10.5 10.5 0 0114.14 0M1.414 8.05a16 16 0 0121.172 0" /></svg>
           </div>
           <div>
@@ -3023,6 +2809,7 @@ INDEX_HTML = r"""<!doctype html>
           <div style="font-size: 13px; color: var(--text-secondary); text-align: right;">
             出口 IP: <span id="proxy_ip_val" class="mono" style="font-weight: 600; color: var(--text-primary);">-</span>
             <span id="proxy_latency_val" style="margin-left: 6px;"></span>
+            <span id="proxy_speed_val" style="margin-left: 6px;"></span>
           </div>
         </div>
 
@@ -3065,7 +2852,7 @@ INDEX_HTML = r"""<!doctype html>
       </div>
 
       <!-- Terminal Log Container -->
-      <div id="log_terminal_container" style="background: #050811; border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; height: 400px; padding: 16px; overflow-y: auto; font-family: 'JetBrains Mono', Consolas, Courier, monospace; font-size: 12px; line-height: 1.5; text-align: left; white-space: pre-wrap; word-break: break-all; color: #a5b4fc; box-shadow: inset 0 4px 20px rgba(0,0,0,0.8); position: relative; margin-bottom: 20px;">
+      <div id="log_terminal_container" style="background: #fff7fb; border: 1px solid rgba(219, 39, 119, 0.12); border-radius: 10px; height: 400px; padding: 16px; overflow-y: auto; font-family: 'JetBrains Mono', Consolas, Courier, monospace; font-size: 12px; line-height: 1.5; text-align: left; white-space: pre-wrap; word-break: break-all; color: #831843; box-shadow: inset 0 4px 20px rgba(219,39,119,0.08); position: relative; margin-bottom: 20px;">
         <div style="color: var(--text-secondary); text-align: center; margin-top: 150px;">
           暂无今日运行日志记录。
         </div>
@@ -3279,6 +3066,7 @@ function render(){
   } else if (activeNode) {
     const latencyClass = getLatencyClass(activeNode.latency_ms);
     const latencyText = activeNode.latency_ms ? `<span class="latency-val ${latencyClass}">${activeNode.latency_ms} ms</span>` : "-";
+    const activeSpeedText = activeNode.speed_bps || state.proxy_speed_bps ? speed(activeNode.speed_bps || state.proxy_speed_bps) : "-";
     const displayLocation = activeNode.location || translateCountry(activeNode.country) || "-";
     activeCardContainer.innerHTML = `
       <div class="active-card">
@@ -3297,6 +3085,7 @@ function render(){
             <div class="active-card-meta" style="margin-top: 4px;">
               <span>物理位置: <strong>${esc(displayLocation)}</strong></span>
               <span style="margin-left: 12px;">延时: <strong>${latencyText}</strong></span>
+              <span style="margin-left: 12px;">粗速度: <strong>${activeSpeedText}</strong></span>
               <span style="margin-left: 12px;">运营主体: <strong>${esc(activeNode.owner || activeNode.as_name || "-")}</strong></span>
               <span style="margin-left: 12px;">IP 类型: <strong>${esc(translateIpType(activeNode.ip_type))}</strong></span>
             </div>
@@ -3343,6 +3132,7 @@ function render(){
   const pBadge = $("proxy_status_badge");
   const pIpVal = $("proxy_ip_val");
   const pLatVal = $("proxy_latency_val");
+  const pSpeedVal = $("proxy_speed_val");
   const pBtn = $("btn_test_proxy");
 
   if (state.is_connecting) {
@@ -3353,6 +3143,7 @@ function render(){
     pBadge.innerHTML = `<span class="badge-pulse" style="background: #f59e0b;"></span>正在连接`;
     pIpVal.textContent = state.active_node_latency || "正在连接...";
     pLatVal.innerHTML = `<span style="color: var(--text-secondary); font-size: 12px;">${esc(state.last_check_message || "正在与 VPN 节点建立加密隧道，请稍候...")}</span>`;
+    if (pSpeedVal) pSpeedVal.innerHTML = "";
     pBtn.disabled = true;
     pBtn.style.opacity = "0.5";
     pBtn.style.cursor = "not-allowed";
@@ -3370,11 +3161,17 @@ function render(){
         pIpVal.textContent = state.proxy_ip || "-";
         const latencyClass = getLatencyClass(state.proxy_latency_ms);
         pLatVal.innerHTML = `<span class="latency-val ${latencyClass}" style="margin-left:8px;">${state.proxy_latency_ms} ms</span>`;
+        if (pSpeedVal) {
+          pSpeedVal.innerHTML = state.proxy_speed_bps
+            ? `<span class="latency-val ${state.proxy_speed_mbps >= 5 ? 'latency-good' : (state.proxy_speed_mbps >= 1 ? 'latency-medium' : 'latency-poor')}" style="margin-left:8px;" title="下载 ${state.proxy_speed_bytes || 0} bytes，用时 ${state.proxy_speed_time_ms || 0} ms">粗速度 ${speed(state.proxy_speed_bps)}</span>`
+            : `<span style="color: var(--text-secondary); font-size: 12px; margin-left:8px;">粗速度 -</span>`;
+        }
       } else {
         pBadge.className = "badge unavailable";
         pBadge.textContent = "不可用";
         pIpVal.textContent = "-";
         pLatVal.innerHTML = `<span class="latency-val latency-poor" style="margin-left:8px; font-size:11px; max-width: 450px; display: inline-block; white-space: normal; line-height: 1.4; text-align: left;" title="${esc(state.proxy_error)}">${esc(state.proxy_error || "连接失败")}</span>`;
+        if (pSpeedVal) pSpeedVal.innerHTML = "";
       }
     } else {
       pBadge.className = "badge not_checked";
@@ -3385,6 +3182,7 @@ function render(){
       } else {
         pLatVal.innerHTML = "";
       }
+      if (pSpeedVal) pSpeedVal.innerHTML = "";
     }
   }
 
@@ -3399,7 +3197,7 @@ function render(){
 
   // Render table rows
   if (currentPageNodes.length === 0) {
-    $("rows").innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 40px 0;">未找到符合过滤条件的备选节点。</td></tr>`;
+    $("rows").innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 40px 0;">未找到符合过滤条件的备选节点。</td></tr>`;
   } else {
     $("rows").innerHTML=currentPageNodes.map(n=>{
       if (!n) return '';
@@ -3410,6 +3208,7 @@ function render(){
       const badgeText = isCurrentlyActive ? '<span class="badge-pulse"></span>已连接' : translateStatus(n.probe_status);
       const latencyClass = getLatencyClass(n.latency_ms);
       const latencyText = n.latency_ms ? `<span class="latency-val ${latencyClass}">${n.latency_ms} ms</span>` : "-";
+      const speedText = n.speed_bps ? `<span class="latency-val ${n.speed_mbps >= 5 ? 'latency-good' : (n.speed_mbps >= 1 ? 'latency-medium' : 'latency-poor')}" title="最近测速: ${time(n.speed_tested_at)}">${speed(n.speed_bps)}</span>` : "-";
       const displayLocation = n.location || translateCountry(n.country) || "-";
 
       const isTesting = testingNodeIds.has(n.id);
@@ -3426,6 +3225,7 @@ function render(){
       return `<tr ${rowClass}>
         <td><span class="badge ${badgeClass}">${badgeText}</span></td>
         <td>${latencyText}</td>
+        <td>${speedText}</td>
         <td class="mono">${esc(n.ip||n.remote_host)}:${n.remote_port||""}</td>
         <td>${esc(displayLocation)}</td>
         <td class="mono" style="font-size:12px; color:var(--text-secondary);">${esc(n.asn||"-")}</td>
@@ -3742,6 +3542,7 @@ $("btn_test_proxy").onclick = async () => {
   const badge = $("proxy_status_badge");
   const ipVal = $("proxy_ip_val");
   const latVal = $("proxy_latency_val");
+  const speedVal = $("proxy_speed_val");
 
   btn.disabled = true;
   btn.innerHTML = `<span class="badge-pulse"></span>测试中...`;
@@ -3749,6 +3550,7 @@ $("btn_test_proxy").onclick = async () => {
   badge.textContent = "检测中...";
   ipVal.textContent = "-";
   latVal.textContent = "";
+  if (speedVal) speedVal.textContent = "";
 
   try {
     const response = await fetch("./api/test_proxy", { method: "POST" });
@@ -3760,50 +3562,45 @@ $("btn_test_proxy").onclick = async () => {
 
       const latencyClass = getLatencyClass(result.latency_ms);
       latVal.innerHTML = `<span class="latency-val ${latencyClass}" style="margin-left:8px;">${result.latency_ms} ms</span>`;
+      if (speedVal) {
+        speedVal.innerHTML = result.speed_bps
+          ? `<span class="latency-val ${result.speed_mbps >= 5 ? 'latency-good' : (result.speed_mbps >= 1 ? 'latency-medium' : 'latency-poor')}" style="margin-left:8px;" title="下载 ${result.speed_bytes || 0} bytes，用时 ${result.speed_time_ms || 0} ms">粗速度 ${speed(result.speed_bps)}</span>`
+          : `<span style="color: var(--text-secondary); font-size: 12px; margin-left:8px;">粗速度 -</span>`;
+      }
+      await load();
     } else {
       badge.className = "badge unavailable";
       badge.textContent = "不可用";
       ipVal.textContent = "-";
       latVal.innerHTML = `<span class="latency-val latency-poor" style="margin-left:8px; font-size:11px;" title="${esc(result.error)}">连接失败</span>`;
+      if (speedVal) speedVal.textContent = "";
     }
   } catch (e) {
     badge.className = "badge unavailable";
     badge.textContent = "网络错误";
     ipVal.textContent = "-";
     latVal.innerHTML = `<span class="latency-val latency-poor" style="margin-left:8px; font-size:11px;">请求出错</span>`;
+    if (speedVal) speedVal.textContent = "";
   } finally {
     btn.disabled = false;
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" style="width:16px; height:16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> 测试代理`;
   }
 };
 
-// Admin dropdown toggle & GitHub dropdown toggle
+// Admin dropdown toggle
 const adminBtn = $("admin_btn");
 const adminDropdown = $("admin_dropdown");
-const githubBtn = $("github_btn");
-const githubDropdown = $("github_dropdown");
 
 if (adminBtn && adminDropdown) {
   adminBtn.onclick = (e) => {
     e.stopPropagation();
     const isShow = adminDropdown.style.display === "block";
     adminDropdown.style.display = isShow ? "none" : "block";
-    if (githubDropdown) githubDropdown.style.display = "none";
-  };
-}
-
-if (githubBtn && githubDropdown) {
-  githubBtn.onclick = (e) => {
-    e.stopPropagation();
-    const isShow = githubDropdown.style.display === "block";
-    githubDropdown.style.display = isShow ? "none" : "block";
-    if (adminDropdown) adminDropdown.style.display = "none";
   };
 }
 
 document.addEventListener("click", () => {
   if (adminDropdown) adminDropdown.style.display = "none";
-  if (githubDropdown) githubDropdown.style.display = "none";
 });
 
 function handleRoutingModeChange(mode) {
@@ -4161,14 +3958,6 @@ async function saveNetwork(e) {
   }
 }
 
-function openAdModal() {
-  $("ad_modal").style.display = "flex";
-}
-
-function closeAdModal() {
-  $("ad_modal").style.display = "none";
-}
-
 async function logoutAdmin() {
   try {
     const res = await fetch("./api/logout", { method: "POST" });
@@ -4307,7 +4096,7 @@ function filterAndRenderLogs() {
   }
 
   const linesHtml = filtered.map(l => {
-    let color = "#a5b4fc";
+    let color = "#831843";
     if (l.module === "Proxy") color = "#38bdf8";
     if (l.module === "VPN") color = "#34d399";
     if (l.level === "WARNING") color = "#fbbf24";
@@ -4417,8 +4206,8 @@ def check_proxy_health() -> dict[str, Any]:
             "error": "[错误代码 3004] [ERR_ROUTE_DEV_NOT_FOUND] VPN 虚拟网卡 (tun0) 未启用，请确保当前已成功连接 VPN 节点"
         }
 
-    # 3. 使用 curl 通过本地 SOCKS5 代理接口测试 IP 与实际延迟
-    def _curl_check_ip(url: str) -> dict[str, Any] | None:
+    # 3. 使用 curl 通过本地 SOCKS5 代理接口测试 IP、延迟与粗略下载速度
+    def _proxy_urls() -> list[str]:
         proxy_hosts = []
         if LOCAL_PROXY_HOST == "::":
             proxy_hosts = ["[::1]", "127.0.0.1"]
@@ -4433,8 +4222,10 @@ def check_proxy_health() -> dict[str, Any]:
         proxy_username = urllib.parse.quote(str(ui_cfg.get("proxy_username", "")), safe="")
         proxy_password = urllib.parse.quote(str(ui_cfg.get("proxy_password", "")), safe="")
         auth_part = f"{proxy_username}:{proxy_password}@" if proxy_username and proxy_password else ""
-        for p_host in proxy_hosts:
-            proxy_url = f"socks5h://{auth_part}{p_host}:{LOCAL_PROXY_PORT}"
+        return [f"socks5h://{auth_part}{p_host}:{LOCAL_PROXY_PORT}" for p_host in proxy_hosts]
+
+    def _curl_check_ip(url: str) -> dict[str, Any] | None:
+        for proxy_url in _proxy_urls():
             cmd = [
                 "curl", "-s",
                 "-w", "\n%{time_total} %{http_code}",
@@ -4458,12 +4249,56 @@ def check_proxy_health() -> dict[str, Any]:
                 pass
         return None
 
+    def _curl_speed_test() -> dict[str, Any]:
+        for url in PROXY_SPEED_TEST_URLS:
+            for proxy_url in _proxy_urls():
+                cmd = [
+                    "curl", "-L", "-sS",
+                    "-o", "/dev/null",
+                    "-w", "%{speed_download} %{time_total} %{size_download} %{http_code}",
+                    "-x", proxy_url,
+                    url,
+                    "--connect-timeout", "5",
+                    "--max-time", "12",
+                ]
+                try:
+                    res = subprocess.run(cmd, capture_output=True, text=True, timeout=14)
+                    if res.returncode != 0:
+                        continue
+                    parts = res.stdout.strip().split()
+                    if len(parts) != 4:
+                        continue
+                    speed_str, total_time_str, size_str, http_code = parts
+                    if http_code not in ("200", "206"):
+                        continue
+                    speed_bps = int(float(speed_str))
+                    bytes_downloaded = int(float(size_str))
+                    if speed_bps > 0 and bytes_downloaded > 0:
+                        return {
+                            "speed_bps": speed_bps,
+                            "speed_mbps": round(speed_bps * 8 / 1000 / 1000, 2),
+                            "speed_bytes": bytes_downloaded,
+                            "speed_time_ms": int(float(total_time_str) * 1000),
+                            "speed_url": url,
+                        }
+                except Exception:
+                    pass
+        return {
+            "speed_bps": 0,
+            "speed_mbps": 0,
+            "speed_bytes": 0,
+            "speed_time_ms": 0,
+            "speed_url": "",
+        }
+
     try:
         result = _curl_check_ip("http://ip.sb")
         if result:
+            result.update(_curl_speed_test())
             return result
         result = _curl_check_ip("http://api.ipify.org")
         if result:
+            result.update(_curl_speed_test())
             return result
 
         # 此时外网测试失败，检测本地代理端口是否依然能连通。若仍能连通，直接抛出出口测试失败，不调用占用诊断
@@ -4515,13 +4350,30 @@ def background_proxy_checker() -> None:
 
             res = check_proxy_health()
             if res["ok"]:
+                if active_openvpn_node_id:
+                    with lock:
+                        nodes = read_json(NODES_FILE, [])
+                        active_node = next((n for n in nodes if n.get("id") == active_openvpn_node_id), None)
+                        if active_node:
+                            active_node["speed_bps"] = res.get("speed_bps", 0)
+                            active_node["speed_mbps"] = res.get("speed_mbps", 0)
+                            active_node["speed_bytes"] = res.get("speed_bytes", 0)
+                            active_node["speed_time_ms"] = res.get("speed_time_ms", 0)
+                            active_node["speed_tested_at"] = time.time()
+                            write_json(NODES_FILE, nodes)
                 set_state(
                     proxy_ok=True,
                     proxy_ip=res["ip"],
                     proxy_latency_ms=res["latency_ms"],
+                    proxy_speed_bps=res.get("speed_bps", 0),
+                    proxy_speed_mbps=res.get("speed_mbps", 0),
+                    proxy_speed_bytes=res.get("speed_bytes", 0),
+                    proxy_speed_time_ms=res.get("speed_time_ms", 0),
+                    proxy_speed_url=res.get("speed_url", ""),
                     proxy_error=""
                 )
-                log_to_json("INFO", "Proxy", f"代理可用，IP: {res['ip']}, 延迟: {res['latency_ms']} ms")
+                speed_label = f"，粗测速: {res.get('speed_mbps', 0)} Mbps" if res.get("speed_bps") else ""
+                log_to_json("INFO", "Proxy", f"代理可用，IP: {res['ip']}, 延迟: {res['latency_ms']} ms{speed_label}")
             else:
                 error_msg = res.get("error", "未知错误")
                 if active_openvpn_node_id:
@@ -4531,6 +4383,11 @@ def background_proxy_checker() -> None:
                     proxy_ok=False,
                     proxy_ip="-",
                     proxy_latency_ms=0,
+                    proxy_speed_bps=0,
+                    proxy_speed_mbps=0,
+                    proxy_speed_bytes=0,
+                    proxy_speed_time_ms=0,
+                    proxy_speed_url="",
                     proxy_error=error_msg
                 )
 
@@ -4596,7 +4453,7 @@ def yaml_quote(value: Any) -> str:
 def build_clash_subscription(headers: Any) -> str:
     ui_cfg = load_ui_config()
     server = normalize_host(PUBLIC_PROXY_HOST) or host_from_request(headers) or "127.0.0.1"
-    name = os.environ.get("CLASH_NODE_NAME", "VPNGate-to-VPS")
+    name = os.environ.get("CLASH_NODE_NAME", "SakuraVPN")
     username = ui_cfg.get("proxy_username", "proxy")
     password = ui_cfg.get("proxy_password", "")
     port = parse_int(PUBLIC_PROXY_PORT) or int(ui_cfg.get("proxy_port", LOCAL_PROXY_PORT))
@@ -5199,10 +5056,26 @@ class Handler(BaseHTTPRequestHandler):
                     self.rfile.read(length)
                 result = check_proxy_health()
                 if result["ok"]:
+                    if active_openvpn_node_id:
+                        with lock:
+                            nodes = read_json(NODES_FILE, [])
+                            active_node = next((n for n in nodes if n.get("id") == active_openvpn_node_id), None)
+                            if active_node:
+                                active_node["speed_bps"] = result.get("speed_bps", 0)
+                                active_node["speed_mbps"] = result.get("speed_mbps", 0)
+                                active_node["speed_bytes"] = result.get("speed_bytes", 0)
+                                active_node["speed_time_ms"] = result.get("speed_time_ms", 0)
+                                active_node["speed_tested_at"] = time.time()
+                                write_json(NODES_FILE, nodes)
                     set_state(
                         proxy_ok=True,
                         proxy_ip=result["ip"],
                         proxy_latency_ms=result["latency_ms"],
+                        proxy_speed_bps=result.get("speed_bps", 0),
+                        proxy_speed_mbps=result.get("speed_mbps", 0),
+                        proxy_speed_bytes=result.get("speed_bytes", 0),
+                        proxy_speed_time_ms=result.get("speed_time_ms", 0),
+                        proxy_speed_url=result.get("speed_url", ""),
                         proxy_error=""
                     )
                 else:
@@ -5210,6 +5083,11 @@ class Handler(BaseHTTPRequestHandler):
                         proxy_ok=False,
                         proxy_ip="-",
                         proxy_latency_ms=0,
+                        proxy_speed_bps=0,
+                        proxy_speed_mbps=0,
+                        proxy_speed_bytes=0,
+                        proxy_speed_time_ms=0,
+                        proxy_speed_url="",
                         proxy_error=result.get("error", "未知错误")
                     )
                 self.send_json(result)
@@ -5261,6 +5139,11 @@ def main() -> None:
             "last_check_message": "服务已启动，正在初始化网络并获取候选 VPN 节点...",
             "is_connecting": False,
             "active_node_latency": "正在准备",
+            "proxy_speed_bps": 0,
+            "proxy_speed_mbps": 0,
+            "proxy_speed_bytes": 0,
+            "proxy_speed_time_ms": 0,
+            "proxy_speed_url": "",
             "blacklisted_nodes": 0,
         },
     )
